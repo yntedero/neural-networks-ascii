@@ -1,7 +1,7 @@
-# Uloha 2 - ASCII Art
-# Neuronove siete na rozpoznavanie znakov a konverzia obrazkov na ASCII text.
+# Task 2 - ASCII Art
+# Neural networks for character recognition and image-to-ASCII conversion.
 #
-# Autor: Ostapchuk
+# Author: Ostapchuk
 
 import os
 
@@ -13,14 +13,14 @@ import torch.nn as nn
 from PIL import Image
 from torch.utils.data import DataLoader, TensorDataset
 
-# seed - aby vysledky boli vzdy rovnake
+# seed for reproducible results
 torch.manual_seed(42)
 np.random.seed(42)
 
-print("PyTorch verzia:", torch.__version__)
+print("PyTorch version:", torch.__version__)
 
-# znaky, ktore rozpoznavame
-# medzera je kodovana ako nuly (prazdny blok)
+# characters to recognize
+# space is encoded as zeros (empty block)
 ZNAKY = [" ", "|", "/", "\\", "_", "-", "^", "o"]
 POCET_ZNAKOV = len(ZNAKY)
 SIRKA_BLOKU = 8
@@ -29,12 +29,12 @@ VECTORSIZE = SIRKA_BLOKU * VYSKA_BLOKU
 
 
 # ============================================================
-# Priprava datasetu
+# Dataset preparation
 # ============================================================
 
-# [AI] programove generovanie binarnych sablon znakov (8x14 pixelov)
-# namiesto manualneho zadavania poli pouzivame funkcie na kreslenie tvarov
-# kazdy znak ma niekolko variant pre lepsiu generalizaciu
+# [AI] programmatic generation of binary character templates (8x14 pixels)
+# instead of manually defined arrays we use drawing functions for shapes
+# each character has several variants for better generalization
 
 def _empty():
     return np.zeros((VYSKA_BLOKU, SIRKA_BLOKU), dtype=np.float32)
@@ -83,7 +83,7 @@ def _fill_triangle(img, top_y, top_x, base_width, height, val=1.0):
         _fill_row(img, top_y + row, x1, x2, val)
 
 
-# kazdy znak ma niekolko geometrickych variant pre lepsiu generalizaciu
+# each character has several geometric variants for better generalization
 def vytvor_znakove_sablony():
     sablony = {}
 
@@ -156,8 +156,8 @@ def vytvor_znakove_sablony():
     return sablony
 
 
-# [AI] augmentacne funkcie (posun, sum) som navrhol s pomocou AI
-# augmentacia zvacsuje dataset umelymi variantmi
+# [AI] augmentation functions (shift, noise) designed with AI assistance
+# augmentation enlarges the dataset with artificial variants
 
 def posun_obrazka(img, dx, dy):
     vysledok = np.zeros_like(img)
@@ -174,14 +174,14 @@ def pridaj_sum(img, intensita=0.1):
     return np.clip(img + sum, 0.0, 1.0)
 
 
-# [AI] rotacia obrazka pomocou PIL - pre augmentaciu datasetu
+# [AI] image rotation using PIL - for dataset augmentation
 def rotacia_obrazka(img, uhol):
     pil_img = Image.fromarray((img * 255).astype(np.uint8), mode='L')
     rotated = pil_img.rotate(uhol, resample=Image.BICUBIC, expand=False, fillcolor=0)
     return np.array(rotated, dtype=np.float32) / 255.0
 
 
-# dataset obsahuje posunutia, sum a rotacie - realne obrazky su vzdy trochu ine
+# dataset contains shifts, noise and rotations - real images always differ slightly
 def vytvor_dataset(sablony, augmentacia=True):
     vstupy = []
     vystupy = []
@@ -218,20 +218,20 @@ def vytvor_dataset(sablony, augmentacia=True):
 
 
 sablony = vytvor_znakove_sablony()
-print("Znaky:", ZNAKY)
-print("Pocet sablon:", sum(len(v) for v in sablony.values()))
+print("Characters:", ZNAKY)
+print("Template count:", sum(len(v) for v in sablony.values()))
 
 X_all, Y_all = vytvor_dataset(sablony, augmentacia=True)
 dataset = TensorDataset(X_all, Y_all)
-print(f"Dataset: {len(dataset)} vzoriek (s augmentaciou)")
+print(f"Dataset: {len(dataset)} samples (with augmentation)")
 
 
 # ============================================================
-# Architektury neuronovych sieti
+# Neural network architectures
 # ============================================================
 
-# Model 1: mensia siet
-# 2 skryte vrstvy, malo parametrov
+# Model 1: small network
+# 2 hidden layers, few parameters
 
 class NetSmall(nn.Module):
     def __init__(self):
@@ -248,8 +248,8 @@ class NetSmall(nn.Module):
         return x
 
 
-# Model 2: stredna siet
-# 3 skryte vrstvy, stredny pocet parametrov
+# Model 2: medium network
+# 3 hidden layers, medium number of parameters
 
 class NetMedium(nn.Module):
     def __init__(self):
@@ -268,9 +268,9 @@ class NetMedium(nn.Module):
         return x
 
 
-# Model 3: vacsia siet
-# [AI] inspiracia pre hlbku siete z AI - vacsia kapacita pre zlozitejsie vzory
-# 4 skryte vrstvy s ReLU, dropout pre regularizaciu
+# Model 3: large network
+# [AI] inspiration for network depth from AI - greater capacity for complex patterns
+# 4 hidden layers with ReLU, dropout for regularization
 
 class NetLarge(nn.Module):
     def __init__(self):
@@ -292,19 +292,19 @@ class NetLarge(nn.Module):
         return x
 
 
-print("Modely pripravene")
-print(f"  NetSmall:  {sum(p.numel() for p in NetSmall().parameters())} parametrov")
-print(f"  NetMedium: {sum(p.numel() for p in NetMedium().parameters())} parametrov")
-print(f"  NetLarge:  {sum(p.numel() for p in NetLarge().parameters())} parametrov")
+print("Models ready")
+print(f"  NetSmall:  {sum(p.numel() for p in NetSmall().parameters())} parameters")
+print(f"  NetMedium: {sum(p.numel() for p in NetMedium().parameters())} parameters")
+print(f"  NetLarge:  {sum(p.numel() for p in NetLarge().parameters())} parameters")
 
 
 # ============================================================
-# Trenovanie a testovanie (mini-batch)
+# Training and testing (mini-batch)
 # ============================================================
 
-# trenovanie siete s mini-batch
-# pouzivame SSE chybu a SGD optimizer
-# [AI] prechod na mini-batch trenovanie pre rychlejsi beh
+# network training with mini-batch
+# using SSE loss and SGD optimizer
+# [AI] switch to mini-batch training for faster execution
 
 BATCH_SIZE = 32
 
@@ -331,14 +331,14 @@ def train(model, X, Y, epochs, lr, print_every=500):
         historia.append(celkova_chyba)
 
         if epoch % print_every == 0 or epoch == epochs:
-            print(f"Epocha {epoch}  Global error  {celkova_chyba:.5f}")
+            print(f"Epoch {epoch}  Global error  {celkova_chyba:.5f}")
 
     return historia
 
 
-# testovanie na trenovacich datach
-# accuracy = kolko znakov bolo rozpoznanych spravne
-# reliability = kolko vystupov je blizko 0 alebo 1
+# testing on training data
+# accuracy = how many characters were recognized correctly
+# reliability = how many outputs are close to 0 or 1
 
 def test(model, X, Y, epsilon=0.2):
     model.eval()
@@ -347,8 +347,8 @@ def test(model, X, Y, epsilon=0.2):
     celk_acc = 0
     celk_rel = 0
 
-    print("\nTestovanie")
-    print(f"{'Znak':<6}{'Predikcia':<10}{'Output':<30}{'Error':<10}{'Accuracy':<12}{'Reliability'}")
+    print("\nTesting")
+    print(f"{'Char':<6}{'Prediction':<10}{'Output':<30}{'Error':<10}{'Accuracy':<12}{'Reliability'}")
     print("-" * 100)
 
     with torch.no_grad():
@@ -375,20 +375,20 @@ def test(model, X, Y, epsilon=0.2):
             out_str = " ".join([f"{v:.2f}" for v in vystup])
             print(f"{true_znak!r:<6}{pred_znak!r:<10}{out_str:<30}{chyba:<10.3f}{acc:.0f}%{'':<8}{rel:.0f}%")
 
-    print(f"\nSpravne: {spravne}/{n}")
-    print(f"Priemerna accuracy: {celk_acc / n:.1f}%")
-    print(f"Priemerna reliability: {celk_rel / n:.1f}%")
+    print(f"\nCorrect: {spravne}/{n}")
+    print(f"Average accuracy: {celk_acc / n:.1f}%")
+    print(f"Average reliability: {celk_rel / n:.1f}%")
 
     model.train()
     return spravne, celk_acc / n, celk_rel / n
 
 
 # ============================================================
-# Konverzia obrazka na ASCII
+# Image-to-ASCII conversion
 # ============================================================
 
-# rozrezanie obrazka na bloky a konverzia na ASCII
-# [AI] logiku rozrezania obrazka som navrhol s pomocou AI
+# splitting image into blocks and converting to ASCII
+# [AI] image splitting logic designed with AI assistance
 
 def obrazok_na_ascii(model, cesta_obrazka, sirka_bloku=8, vyska_bloku=14):
     img = Image.open(cesta_obrazka).convert("L")
@@ -429,7 +429,7 @@ def obrazok_na_ascii(model, cesta_obrazka, sirka_bloku=8, vyska_bloku=14):
 
 
 # ============================================================
-# Experimenty
+# Experiments
 # ============================================================
 
 # ============================================================
@@ -440,8 +440,8 @@ print("\n" + "=" * 60)
 print("MODEL 1: NetSmall (112->64->32->8)")
 print("=" * 60)
 
-# Experiment 1.1 - zakladny, lr=1.0, 500 epoch (mini-batch = menej epoch)
-print("\n=== Experiment 1.1 (lr=1.0, 500 epoch) ===\n")
+# Experiment 1.1 - baseline, lr=1.0, 500 epochs (mini-batch = fewer epochs)
+print("\n=== Experiment 1.1 (lr=1.0, 500 epochs) ===\n")
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -449,8 +449,8 @@ model_1_1 = NetSmall()
 hist_1_1 = train(model_1_1, X_all, Y_all, epochs=500, lr=1.0, print_every=100)
 s_1_1, a_1_1, r_1_1 = test(model_1_1, X_all, Y_all)
 
-# Experiment 1.2 - vyssie lr=2.0
-print("\n=== Experiment 1.2 (lr=2.0, 800 epoch) ===\n")
+# Experiment 1.2 - higher lr=2.0
+print("\n=== Experiment 1.2 (lr=2.0, 800 epochs) ===\n")
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -458,42 +458,42 @@ model_1_2 = NetSmall()
 hist_1_2 = train(model_1_2, X_all, Y_all, epochs=800, lr=2.0, print_every=200)
 s_1_2, a_1_2, r_1_2 = test(model_1_2, X_all, Y_all)
 
-# Experiment 1.3 - krokovy learning rate
-# [AI] napad krokoveho lr som nasiel s pomocou AI
-print("\n=== Experiment 1.3 (krokovy lr) ===\n")
+# Experiment 1.3 - step learning rate
+# [AI] idea for step lr found with AI assistance
+print("\n=== Experiment 1.3 (step lr) ===\n")
 
 torch.manual_seed(42)
 np.random.seed(42)
 model_1_3 = NetSmall()
 hist_1_3 = []
-print("--- faza 1: lr=2.0, 300 epoch ---")
+print("--- phase 1: lr=2.0, 300 epochs ---")
 h = train(model_1_3, X_all, Y_all, epochs=300, lr=2.0, print_every=150)
 hist_1_3.extend(h)
-print("\n--- faza 2: lr=0.5, 200 epoch ---")
+print("\n--- phase 2: lr=0.5, 200 epochs ---")
 h = train(model_1_3, X_all, Y_all, epochs=200, lr=0.5, print_every=100)
 hist_1_3.extend(h)
-print("\n--- faza 3: lr=0.05, 100 epoch ---")
+print("\n--- phase 3: lr=0.05, 100 epochs ---")
 h = train(model_1_3, X_all, Y_all, epochs=100, lr=0.05, print_every=50)
 hist_1_3.extend(h)
 s_1_3, a_1_3, r_1_3 = test(model_1_3, X_all, Y_all)
 
-# graf chyb - model 1
+# error plot - model 1
 plt.figure(figsize=(10, 4))
 plt.plot(hist_1_1, label="Exp 1.1 (lr=1.0)")
 plt.plot(hist_1_2, label="Exp 1.2 (lr=2.0)")
-plt.plot(hist_1_3, label="Exp 1.3 (krokovy lr)")
-plt.xlabel("Epocha")
+plt.plot(hist_1_3, label="Exp 1.3 (step lr)")
+plt.xlabel("Epoch")
 plt.ylabel("Global error")
-plt.title("Model 1 (NetSmall) - Priebeh chyby")
+plt.title("Model 1 (NetSmall) - Error progress")
 plt.legend()
 plt.grid(alpha=0.3)
 plt.tight_layout()
 plt.show()
 
 n_data = len(dataset)
-print(f"Exp 1.1 (lr=1.0):    spravne={s_1_1}/{n_data}  acc={a_1_1:.1f}%  rel={r_1_1:.1f}%")
-print(f"Exp 1.2 (lr=2.0):    spravne={s_1_2}/{n_data}  acc={a_1_2:.1f}%  rel={r_1_2:.1f}%")
-print(f"Exp 1.3 (step lr):   spravne={s_1_3}/{n_data}  acc={a_1_3:.1f}%  rel={r_1_3:.1f}%")
+print(f"Exp 1.1 (lr=1.0):    correct={s_1_1}/{n_data}  acc={a_1_1:.1f}%  rel={r_1_1:.1f}%")
+print(f"Exp 1.2 (lr=2.0):    correct={s_1_2}/{n_data}  acc={a_1_2:.1f}%  rel={r_1_2:.1f}%")
+print(f"Exp 1.3 (step lr):   correct={s_1_3}/{n_data}  acc={a_1_3:.1f}%  rel={r_1_3:.1f}%")
 
 
 # ============================================================
@@ -504,8 +504,8 @@ print("\n" + "=" * 60)
 print("MODEL 2: NetMedium (112->128->64->32->8)")
 print("=" * 60)
 
-# Experiment 2.1 - zakladny, lr=1.0
-print("\n=== Experiment 2.1 (lr=1.0, 500 epoch) ===\n")
+# Experiment 2.1 - baseline, lr=1.0
+print("\n=== Experiment 2.1 (lr=1.0, 500 epochs) ===\n")
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -513,8 +513,8 @@ model_2_1 = NetMedium()
 hist_2_1 = train(model_2_1, X_all, Y_all, epochs=500, lr=1.0, print_every=100)
 s_2_1, a_2_1, r_2_1 = test(model_2_1, X_all, Y_all)
 
-# Experiment 2.2 - vyssie lr=2.0
-print("\n=== Experiment 2.2 (lr=2.0, 800 epoch) ===\n")
+# Experiment 2.2 - higher lr=2.0
+print("\n=== Experiment 2.2 (lr=2.0, 800 epochs) ===\n")
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -522,33 +522,33 @@ model_2_2 = NetMedium()
 hist_2_2 = train(model_2_2, X_all, Y_all, epochs=800, lr=2.0, print_every=200)
 s_2_2, a_2_2, r_2_2 = test(model_2_2, X_all, Y_all)
 
-# Experiment 2.3 - krokovy learning rate
-# [AI] napad krokoveho lr som nasiel s pomocou AI
-print("\n=== Experiment 2.3 (krokovy lr) ===\n")
+# Experiment 2.3 - step learning rate
+# [AI] idea for step lr found with AI assistance
+print("\n=== Experiment 2.3 (step lr) ===\n")
 
 torch.manual_seed(42)
 np.random.seed(42)
 model_2_3 = NetMedium()
 hist_2_3 = []
-print("--- faza 1: lr=2.0, 300 epoch ---")
+print("--- phase 1: lr=2.0, 300 epochs ---")
 h = train(model_2_3, X_all, Y_all, epochs=300, lr=2.0, print_every=150)
 hist_2_3.extend(h)
-print("\n--- faza 2: lr=0.5, 200 epoch ---")
+print("\n--- phase 2: lr=0.5, 200 epochs ---")
 h = train(model_2_3, X_all, Y_all, epochs=200, lr=0.5, print_every=100)
 hist_2_3.extend(h)
-print("\n--- faza 3: lr=0.05, 100 epoch ---")
+print("\n--- phase 3: lr=0.05, 100 epochs ---")
 h = train(model_2_3, X_all, Y_all, epochs=100, lr=0.05, print_every=50)
 hist_2_3.extend(h)
 s_2_3, a_2_3, r_2_3 = test(model_2_3, X_all, Y_all)
 
-# graf chyb - model 2
+# error plot - model 2
 plt.figure(figsize=(10, 4))
 plt.plot(hist_2_1, label="Exp 2.1 (lr=1.0)")
 plt.plot(hist_2_2, label="Exp 2.2 (lr=2.0)")
-plt.plot(hist_2_3, label="Exp 2.3 (krokovy lr)")
-plt.xlabel("Epocha")
+plt.plot(hist_2_3, label="Exp 2.3 (step lr)")
+plt.xlabel("Epoch")
 plt.ylabel("Global error")
-plt.title("Model 2 (NetMedium) - Priebeh chyby")
+plt.title("Model 2 (NetMedium) - Error progress")
 plt.legend()
 plt.grid(alpha=0.3)
 plt.tight_layout()
@@ -563,8 +563,8 @@ print("\n" + "=" * 60)
 print("MODEL 3: NetLarge (112->256->128->64->32->8)")
 print("=" * 60)
 
-# Experiment 3.1 - zakladny, lr=0.5
-print("\n=== Experiment 3.1 (lr=0.5, 800 epoch) ===\n")
+# Experiment 3.1 - baseline, lr=0.5
+print("\n=== Experiment 3.1 (lr=0.5, 800 epochs) ===\n")
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -572,8 +572,8 @@ model_3_1 = NetLarge()
 hist_3_1 = train(model_3_1, X_all, Y_all, epochs=800, lr=0.5, print_every=200)
 s_3_1, a_3_1, r_3_1 = test(model_3_1, X_all, Y_all)
 
-# Experiment 3.2 - vyssie lr=2.0
-print("\n=== Experiment 3.2 (lr=2.0, 800 epoch) ===\n")
+# Experiment 3.2 - higher lr=2.0
+print("\n=== Experiment 3.2 (lr=2.0, 800 epochs) ===\n")
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -581,33 +581,33 @@ model_3_2 = NetLarge()
 hist_3_2 = train(model_3_2, X_all, Y_all, epochs=800, lr=2.0, print_every=200)
 s_3_2, a_3_2, r_3_2 = test(model_3_2, X_all, Y_all)
 
-# Experiment 3.3 - krokovy learning rate
-# [AI] napad krokoveho lr som nasiel s pomocou AI
-print("\n=== Experiment 3.3 (krokovy lr) ===\n")
+# Experiment 3.3 - step learning rate
+# [AI] idea for step lr found with AI assistance
+print("\n=== Experiment 3.3 (step lr) ===\n")
 
 torch.manual_seed(42)
 np.random.seed(42)
 model_3_3 = NetLarge()
 hist_3_3 = []
-print("--- faza 1: lr=2.0, 300 epoch ---")
+print("--- phase 1: lr=2.0, 300 epochs ---")
 h = train(model_3_3, X_all, Y_all, epochs=300, lr=2.0, print_every=150)
 hist_3_3.extend(h)
-print("\n--- faza 2: lr=0.5, 200 epoch ---")
+print("\n--- phase 2: lr=0.5, 200 epochs ---")
 h = train(model_3_3, X_all, Y_all, epochs=200, lr=0.5, print_every=100)
 hist_3_3.extend(h)
-print("\n--- faza 3: lr=0.05, 100 epoch ---")
+print("\n--- phase 3: lr=0.05, 100 epochs ---")
 h = train(model_3_3, X_all, Y_all, epochs=100, lr=0.05, print_every=50)
 hist_3_3.extend(h)
 s_3_3, a_3_3, r_3_3 = test(model_3_3, X_all, Y_all)
 
-# graf chyb - model 3
+# error plot - model 3
 plt.figure(figsize=(10, 4))
 plt.plot(hist_3_1, label="Exp 3.1 (lr=0.5)")
 plt.plot(hist_3_2, label="Exp 3.2 (lr=2.0)")
-plt.plot(hist_3_3, label="Exp 3.3 (krokovy lr)")
-plt.xlabel("Epocha")
+plt.plot(hist_3_3, label="Exp 3.3 (step lr)")
+plt.xlabel("Epoch")
 plt.ylabel("Global error")
-plt.title("Model 3 (NetLarge) - Priebeh chyby")
+plt.title("Model 3 (NetLarge) - Error progress")
 plt.legend()
 plt.grid(alpha=0.3)
 plt.tight_layout()
@@ -615,7 +615,7 @@ plt.show()
 
 
 # ============================================================
-# Ulozenie modelov
+# Saving models
 # ============================================================
 
 os.makedirs("models", exist_ok=True)
@@ -629,15 +629,15 @@ torch.save(model_2_3.state_dict(), "models/model2_exp3.pth")
 torch.save(model_3_1.state_dict(), "models/model3_exp1.pth")
 torch.save(model_3_2.state_dict(), "models/model3_exp2.pth")
 torch.save(model_3_3.state_dict(), "models/model3_exp3.pth")
-print("\nModely ulozene do priecinka models/")
+print("\nModels saved to models/ folder")
 
 
 # ============================================================
-# Test na realnych obrazkoch
+# Test on real images
 # ============================================================
 
 print("\n" + "=" * 60)
-print("TEST NA REALNYCH OBRAZKOCH")
+print("TEST ON REAL IMAGES")
 print("=" * 60)
 
 cesta = "test-photo.png"
@@ -650,33 +650,34 @@ best_models = [
 
 if os.path.exists(cesta):
     print(f"\n{'=' * 50}")
-    print(f"OBRAZOK: {cesta}")
+    print(f"IMAGE: {cesta}")
     print(f"{'=' * 50}")
     for meno, model in best_models:
         print(f"\n--- {meno} ---")
         ascii_art = obrazok_na_ascii(model, cesta, SIRKA_BLOKU, VYSKA_BLOKU)
         print(ascii_art)
 else:
-    print(f"\nObrazok {cesta} nenajdeny")
+    print(f"\nImage {cesta} not found")
 
 
 # ============================================================
-# Zhrnutie
+# Summary
 #
-# Porovnali sme 3 architektury:
-# - NetSmall: 2 skryte vrstvy (64, 32) s Sigmoid
-# - NetMedium: 3 skryte vrstvy (128, 64, 32) s Sigmoid
-# - NetLarge: 4 skryte vrstvy (256, 128, 64, 32) s ReLU
+# We compared 3 architectures:
+# - NetSmall:  2 hidden layers (64, 32) with Sigmoid
+# - NetMedium: 3 hidden layers (128, 64, 32) with Sigmoid
+# - NetLarge:  4 hidden layers (256, 128, 64, 32) with ReLU
 #
-# Optimalizacie:
-# - Mini-batch trenovanie (batch_size=32) namiesto sample-by-sample SGD
-# - TensorDataset + DataLoader pre efektivne batchovanie
-# - Znizeny pocet epoch vdaka lepsiemu gradientu z mini-batchov
-# - matplotlib Agg backend (zabrana blokovanie plt.show())
-# - Vektorizovana konverzia obrazku na ASCII (vsetky bloky naraz)
+# Optimizations:
+# - Mini-batch training (batch_size=32) instead of sample-by-sample SGD
+# - TensorDataset + DataLoader for efficient batching
+# - Reduced epoch count thanks to better gradient from mini-batches
+# - matplotlib Agg backend (prevents plt.show() from blocking)
+# - Vectorized image-to-ASCII conversion (all blocks at once)
 #
-# Co som zistil:
-# - Vacsi model = lepsia schopnost generalizacie
-# - Krokovy lr je opat najlepsia strategia
-# - ReLU v hlbsej sieti pomaha rychlejsiemu uceniu
-# - Pri realnom obrazku najlepsi vysledok dava NetLarge
+# Findings:
+# - Larger model = better generalization capability
+# - Step lr is again the best strategy
+# - ReLU in deeper networks helps faster learning
+# - NetLarge gives the best result on real images
+#
